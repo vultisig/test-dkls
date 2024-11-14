@@ -38,7 +38,11 @@ func GenerateRandomChainCodeHex() (string, error) {
 	encodedChainCode := hex.EncodeToString(chainCode)
 	return encodedChainCode, nil
 }
-
+func SHA256HashBytes(input []byte) []byte {
+	h := sha256.New()
+	h.Write(input)
+	return h.Sum(nil)
+}
 func GetSHA256Hash(input []byte) (string, error) {
 	h := sha256.New()
 	_, err := h.Write(input)

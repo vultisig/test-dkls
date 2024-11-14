@@ -64,6 +64,33 @@ func main() {
 				},
 				Action: keygenCmd,
 			},
+			{
+				Name: "keysign",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:       "pubkey",
+						Aliases:    []string{"pk"},
+						Usage:      "ECDSA pubkey that will be used to do keysign",
+						Required:   true,
+						HasBeenSet: false,
+						Hidden:     false,
+					},
+					&cli.StringFlag{
+						Name:       "message",
+						Aliases:    []string{"m"},
+						Usage:      "message that need to be signed",
+						Required:   true,
+						HasBeenSet: false,
+						Hidden:     false,
+					},
+					&cli.StringFlag{
+						Name:     "derivepath",
+						Usage:    "derive path for bitcoin, e.g. m/84'/0'/0'/0/0",
+						Required: true,
+					},
+				},
+				Action: keysignCmd,
+			},
 		},
 	}
 
@@ -79,9 +106,27 @@ func keygenCmd(c *cli.Context) error {
 	server := c.String("server")
 	chaincode := c.String("chaincode")
 	isLeader := c.Bool("leader")
-	tss, err := NewTssService(server)
+	localStateAccessorImp := NewLocalStateAccessorImp(key)
+	tss, err := NewTssService(server, localStateAccessorImp)
 	if err != nil {
 		return err
 	}
 	return tss.Keygen(sessionID, chaincode, key, parties, isLeader)
+}
+
+func keysignCmd(c *cli.Context) error {
+	key := c.String("key")
+	parties := c.StringSlice("parties")
+	sessionID := c.String("session")
+	server := c.String("server")
+	isLeader := c.Bool("leader")
+	publicKey := c.String("pubkey")
+	message := c.String("message")
+	derivePath := c.String("derivepath")
+	localStateAccessorImp := NewLocalStateAccessorImp(key)
+	tss, err := NewTssService(server, localStateAccessorImp)
+	if err != nil {
+		return err
+	}
+	return tss.Keysign(sessionID, publicKey, message, derivePath, key, parties, isLeader)
 }
