@@ -65,6 +65,20 @@ func main() {
 				Action: keygenCmd,
 			},
 			{
+				Name: "reshare",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:       "pubkey",
+						Aliases:    []string{"pk"},
+						Usage:      "ECDSA pubkey that will be used to do keysign",
+						Required:   true,
+						HasBeenSet: false,
+						Hidden:     false,
+					},
+				},
+				Action: reshareCmd,
+			},
+			{
 				Name: "keysign",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
@@ -112,6 +126,21 @@ func keygenCmd(c *cli.Context) error {
 		return err
 	}
 	return tss.Keygen(sessionID, chaincode, key, parties, isLeader)
+}
+func reshareCmd(c *cli.Context) error {
+	key := c.String("key")
+	parties := c.StringSlice("parties")
+	sessionID := c.String("session")
+	server := c.String("server")
+	publicKey := c.String("pubkey")
+	isLeader := c.Bool("leader")
+
+	localStateAccessorImp := NewLocalStateAccessorImp(key)
+	tss, err := NewTssService(server, localStateAccessorImp)
+	if err != nil {
+		return err
+	}
+	return tss.Reshare(sessionID, publicKey, key, parties, isLeader)
 }
 
 func keysignCmd(c *cli.Context) error {
