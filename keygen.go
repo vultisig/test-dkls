@@ -12,6 +12,7 @@ import (
 	"io"
 	"math/big"
 	"net/http"
+	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -544,4 +545,76 @@ func (t *TssService) convertKeygenCommitteeToBytes(paries []string) ([]byte, err
 		result = result[:len(result)-1]
 	}
 	return result, nil
+}
+
+func ExportRootKey(parts []string, parties []string) error {
+	if len(parts) == 0 {
+		return fmt.Errorf("no parts provided")
+	}
+	fmt.Println("Exporting root key", parts, parties)
+	// get first share
+	firstPart := parts[0]
+	firstBytes, err := os.ReadFile(firstPart)
+	if err != nil {
+		return fmt.Errorf("failed to read file %s: %w", firstPart, err)
+	}
+	firstPartRawBytes, err := base64.StdEncoding.DecodeString(string(firstBytes))
+	if err != nil {
+		return fmt.Errorf("failed to decode base64: %w", err)
+	}
+	keyshareHandle, err := session.DklsKeyshareFromBytes(firstPartRawBytes)
+	if err != nil {
+		return fmt.Errorf("failed to create keyshare from bytes: %w", err)
+	}
+	defer func() {
+		if err := session.DklsKeyshareFree(keyshareHandle); err != nil {
+			fmt.Printf("failed to free keyshare: %w \n", err)
+		}
+	}()
+
+	exportSession, setupMsg, err := session.DklsKeyExportReceiverNew(keyshareHandle, parties)
+	if err != nil {
+		return fmt.Errorf("failed to create export receiver: %w", err)
+	}
+	msgs := make([][]byte, 0, len(parts)-1)
+	for idx, item := range parts[1:] {
+		fmt.Println("Processing keyshare", item, parties[idx+1])
+		keyShareBytes, err := os.ReadFile(item)
+		if err != nil {
+			return fmt.Errorf("failed to read file %s: %w", item, err)
+		}
+		rawBytes, err := base64.StdEncoding.DecodeString(string(keyShareBytes))
+		if err != nil {
+			return fmt.Errorf("failed to decode base64: %w", err)
+		}
+		handle, err := session.DklsKeyshareFromBytes(rawBytes)
+		if err != nil {
+			return fmt.Errorf("failed to create keyshare from bytes: %w", err)
+		}
+		defer func() {
+			if err := session.DklsKeyshareFree(handle); err != nil {
+				fmt.Printf("failed to free keyshare: %w \n", err)
+			}
+		}()
+		msg, _, err := session.DklsKeyExporter(handle, parties[idx+1], setupMsg)
+		if err != nil {
+			return fmt.Errorf("failed to export key: %w", err)
+		}
+
+		msgs = append(msgs, msg)
+	}
+	for _, item := range msgs {
+		finish, err := session.DklsKeyExportReceiverInputMessage(exportSession, item)
+		if err != nil {
+			return fmt.Errorf("failed to apply input message: %w", err)
+		}
+		if finish {
+			secret, err := session.DklsKeyExportReceiverFinish(exportSession)
+			if err != nil {
+				return fmt.Errorf("failed to finish key export: %w", err)
+			}
+			fmt.Println("Secret is:", hex.EncodeToString(secret))
+		}
+	}
+	return nil
 }

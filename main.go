@@ -21,7 +21,7 @@ func main() {
 				Name:       "key",
 				Aliases:    []string{"k"},
 				Usage:      "something to uniquely identify local party",
-				Required:   true,
+				Required:   false,
 				HasBeenSet: false,
 				Hidden:     false,
 			},
@@ -29,14 +29,14 @@ func main() {
 				Name:       "parties",
 				Aliases:    []string{"p"},
 				Usage:      "comma separated list of party keys, need to have all the keys of the keygen committee",
-				Required:   true,
+				Required:   false,
 				HasBeenSet: false,
 				Hidden:     false,
 			},
 			&cli.StringFlag{
 				Name:       "session",
 				Usage:      "current communication session",
-				Required:   true,
+				Required:   false,
 				HasBeenSet: false,
 				Hidden:     false,
 			},
@@ -63,6 +63,20 @@ func main() {
 					},
 				},
 				Action: keygenCmd,
+			},
+			{
+				Name: "export",
+				Flags: []cli.Flag{
+					&cli.StringSliceFlag{
+						Name:       "part",
+						Aliases:    []string{"p"},
+						Usage:      "part files",
+						Required:   true,
+						HasBeenSet: false,
+						Hidden:     false,
+					},
+				},
+				Action: exportCmd,
 			},
 			{
 				Name: "reshare",
@@ -106,6 +120,12 @@ func main() {
 				Action: keysignCmd,
 			},
 		},
+		Before: func(c *cli.Context) error {
+			if c.Command.Name == "export" {
+				return nil
+			}
+			return nil
+		},
 	}
 
 	if err := app.Run(os.Args); err != nil {
@@ -127,6 +147,8 @@ func keygenCmd(c *cli.Context) error {
 	}
 	return tss.Keygen(sessionID, chaincode, key, parties, isLeader)
 }
+
+// reshare doesn't work yet
 func reshareCmd(c *cli.Context) error {
 	key := c.String("key")
 	parties := c.StringSlice("parties")
@@ -142,7 +164,6 @@ func reshareCmd(c *cli.Context) error {
 	}
 	return tss.Reshare(sessionID, publicKey, key, parties, isLeader)
 }
-
 func keysignCmd(c *cli.Context) error {
 	key := c.String("key")
 	parties := c.StringSlice("parties")
@@ -158,4 +179,10 @@ func keysignCmd(c *cli.Context) error {
 		return err
 	}
 	return tss.Keysign(sessionID, publicKey, message, derivePath, key, parties, isLeader)
+}
+func exportCmd(c *cli.Context) error {
+	parts := c.StringSlice("part")
+	parties := c.StringSlice("parties")
+
+	return ExportRootKey(parts, parties)
 }
