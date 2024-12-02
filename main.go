@@ -61,6 +61,13 @@ func main() {
 						HasBeenSet: false,
 						Hidden:     false,
 					},
+					&cli.BoolFlag{
+						Name:       "eddsa",
+						Required:   false,
+						Hidden:     false,
+						HasBeenSet: false,
+						Value:      false,
+					},
 				},
 				Action: keygenCmd,
 			},
@@ -116,6 +123,13 @@ func main() {
 						Usage:    "derive path for bitcoin, e.g. m/84'/0'/0'/0/0",
 						Required: true,
 					},
+					&cli.BoolFlag{
+						Name:       "eddsa",
+						Required:   false,
+						Hidden:     false,
+						HasBeenSet: false,
+						Value:      false,
+					},
 				},
 				Action: keysignCmd,
 			},
@@ -141,7 +155,8 @@ func keygenCmd(c *cli.Context) error {
 	chaincode := c.String("chaincode")
 	isLeader := c.Bool("leader")
 	localStateAccessorImp := NewLocalStateAccessorImp(key)
-	tss, err := NewTssService(server, localStateAccessorImp)
+	isEdDSA := c.Bool("eddsa")
+	tss, err := NewTssService(server, localStateAccessorImp, isEdDSA)
 	if err != nil {
 		return err
 	}
@@ -156,9 +171,9 @@ func reshareCmd(c *cli.Context) error {
 	server := c.String("server")
 	publicKey := c.String("pubkey")
 	isLeader := c.Bool("leader")
-
+	isEdDSA := c.Bool("eddsa")
 	localStateAccessorImp := NewLocalStateAccessorImp(key)
-	tss, err := NewTssService(server, localStateAccessorImp)
+	tss, err := NewTssService(server, localStateAccessorImp, isEdDSA)
 	if err != nil {
 		return err
 	}
@@ -173,8 +188,9 @@ func keysignCmd(c *cli.Context) error {
 	publicKey := c.String("pubkey")
 	message := c.String("message")
 	derivePath := c.String("derivepath")
+	isEdDSA := c.Bool("eddsa")
 	localStateAccessorImp := NewLocalStateAccessorImp(key)
-	tss, err := NewTssService(server, localStateAccessorImp)
+	tss, err := NewTssService(server, localStateAccessorImp, isEdDSA)
 	if err != nil {
 		return err
 	}

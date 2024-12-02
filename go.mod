@@ -4,6 +4,7 @@ go 1.23.2
 
 require (
 	github.com/bnb-chain/tss-lib/v2 v2.0.2
+	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/urfave/cli/v2 v2.27.5
 	github.com/vultisig/mobile-tss-lib v0.0.0-20241007055757-4506b08a18a5
@@ -18,7 +19,6 @@ require (
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.5 // indirect
 	github.com/decred/dcrd/dcrec/edwards/v2 v2.0.3 // indirect
-	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0 // indirect
 	github.com/gogo/protobuf v1.3.3 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
@@ -42,5 +42,6 @@ replace (
 	github.com/agl/ed25519 => github.com/binance-chain/edwards25519 v0.0.0-20200305024217-f36fc4b53d43
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.2-alpha.regen.4
 	github.com/gogo/protobuf/proto => github.com/gogo/protobuf/proto v1.3.2
-	go-wrapper => ../dkls23-rs/wrapper/go-dkls/go-wrapper/
+	go-schnorr => ../dkls23-rs/wrapper/go-schnorr/
+	go-wrapper => ../dkls23-rs/wrapper/go-wrappers/
 )

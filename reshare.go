@@ -7,7 +7,6 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/vultisig/mobile-tss-lib/coordinator"
-	session "go-wrapper/go-bindings/sessions"
 )
 
 func (t *TssService) Reshare(sessionID string,
@@ -22,7 +21,7 @@ func (t *TssService) Reshare(sessionID string,
 	if len(keygenCommittee) == 0 {
 		return fmt.Errorf("keygen committee is empty")
 	}
-
+	mpcWrapper := t.GetMPCKeygenWrapper()
 	t.logger.WithFields(logrus.Fields{
 		"session_id":         sessionID,
 		"public_key_ecdsa":   publicKeyECDAS,
@@ -35,7 +34,7 @@ func (t *TssService) Reshare(sessionID string,
 		return fmt.Errorf("failed to start session: %w", err)
 	}
 	var keyID []byte
-	var keyshareHandle session.Handle
+	var keyshareHandle Handle
 	if len(publicKeyECDAS) > 0 {
 		// we need to get the shares
 		keyshare, err := t.localStateAccessor.GetLocalState(publicKeyECDAS)
@@ -46,16 +45,16 @@ func (t *TssService) Reshare(sessionID string,
 		if err != nil {
 			return fmt.Errorf("failed to decode keyshare: %w", err)
 		}
-		keyshareHandle, err = session.DklsKeyshareFromBytes(keyshareBytes)
+		keyshareHandle, err = mpcWrapper.KeyshareFromBytes(keyshareBytes)
 		if err != nil {
 			return fmt.Errorf("failed to create keyshare from bytes: %w", err)
 		}
 		defer func() {
-			if err := session.DklsKeyshareFree(keyshareHandle); err != nil {
+			if err := mpcWrapper.KeyshareFree(keyshareHandle); err != nil {
 				t.logger.Error("failed to free keyshare", "error", err)
 			}
 		}()
-		keyID, err = session.DklsKeyshareKeyID(keyshareHandle)
+		keyID, err = mpcWrapper.KeyshareKeyID(keyshareHandle)
 		if err != nil {
 			return fmt.Errorf("failed to get key id: %w", err)
 		}
@@ -77,7 +76,7 @@ func (t *TssService) Reshare(sessionID string,
 			return fmt.Errorf("failed to get threshold: %v", err)
 		}
 		t.logger.Infof("Threshold is %v", threshold+1)
-		setupMsg, err := session.DklsKeygenSetupMsgNew(threshold+1, keyID, keygenCommitteeBytes)
+		setupMsg, err := mpcWrapper.KeygenSetupMsgNew(threshold+1, keyID, keygenCommitteeBytes)
 		if err != nil {
 			return fmt.Errorf("failed to create setup message: %v", err)
 		}
@@ -104,14 +103,14 @@ func (t *TssService) Reshare(sessionID string,
 	if err != nil {
 		return fmt.Errorf("failed to decode setup message: %w", err)
 	}
-	handle, err := session.DklsKeyRefreshSessionFromSetup(setupMessageBytes,
+	handle, err := mpcWrapper.KeyRefreshSessionFromSetup(setupMessageBytes,
 		[]byte(localPartyID),
 		keyshareHandle)
 	if err != nil {
 		return fmt.Errorf("failed to create session from setup message: %w", err)
 	}
 	defer func() {
-		if err := session.DklsKeygenSessionFree(handle); err != nil {
+		if err := mpcWrapper.KeygenSessionFree(handle); err != nil {
 			t.logger.Error("failed to free keygen session", "error", err)
 		}
 	}()
