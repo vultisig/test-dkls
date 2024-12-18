@@ -96,6 +96,13 @@ func main() {
 						HasBeenSet: false,
 						Hidden:     false,
 					},
+					&cli.StringSliceFlag{
+						Name:       "old-parties",
+						Usage:      "Old parties",
+						Required:   true,
+						Hidden:     false,
+						HasBeenSet: false,
+					},
 				},
 				Action: reshareCmd,
 			},
@@ -172,12 +179,13 @@ func reshareCmd(c *cli.Context) error {
 	publicKey := c.String("pubkey")
 	isLeader := c.Bool("leader")
 	isEdDSA := c.Bool("eddsa")
+	oldParties := c.StringSlice("old-parties")
 	localStateAccessorImp := NewLocalStateAccessorImp(key)
 	tss, err := NewTssService(server, localStateAccessorImp, isEdDSA)
 	if err != nil {
 		return err
 	}
-	return tss.Reshare(sessionID, publicKey, key, parties, isLeader)
+	return tss.Reshare(sessionID, publicKey, key, parties, oldParties, isLeader)
 }
 func keysignCmd(c *cli.Context) error {
 	key := c.String("key")

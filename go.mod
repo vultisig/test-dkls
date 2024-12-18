@@ -5,6 +5,7 @@ go 1.23.2
 require (
 	github.com/bnb-chain/tss-lib/v2 v2.0.2
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0
+	github.com/ethereum/go-ethereum v1.14.11
 	github.com/sirupsen/logrus v1.9.3
 	github.com/urfave/cli/v2 v2.27.5
 	github.com/vultisig/mobile-tss-lib v0.0.0-20241007055757-4506b08a18a5
@@ -14,7 +15,7 @@ require (
 require (
 	github.com/agl/ed25519 v0.0.0-20200225211852-fd4d107ace12 // indirect
 	github.com/btcsuite/btcd v0.24.0 // indirect
-	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
+	github.com/btcsuite/btcd/btcec/v2 v2.3.4 // indirect
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0 // indirect
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.5 // indirect

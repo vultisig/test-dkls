@@ -336,7 +336,7 @@ func (t *TssService) Keysign(sessionID string,
 		if err != nil {
 			return fmt.Errorf("failed to get keysign committee: %w", err)
 		}
-		intialMsg, err := mpcWrapper.SignSetupMsgNew(keyID, nil, msgHash, keysignCommitteeBytes)
+		intialMsg, err := mpcWrapper.SignSetupMsgNew(keyID, []byte("m/44/931/0/0/0"), msgHash, keysignCommitteeBytes)
 		if err != nil {
 			return fmt.Errorf("failed to create initial message: %w", err)
 		}
@@ -444,6 +444,7 @@ func (t *TssService) processKeysignOutbound(handle Handle,
 			time.Sleep(time.Millisecond * 100)
 			continue
 		}
+		fmt.Println("Outbound message is:", len(outbound))
 		encodedOutbound := base64.StdEncoding.EncodeToString(outbound)
 		for i := 0; i < len(parties); i++ {
 			receiver, err := mpcWrapper.SignSessionMessageReceiver(handle, outbound, i)
@@ -590,7 +591,7 @@ func ExportRootKey(parts []string, parties []string) error {
 	}
 	defer func() {
 		if err := session.DklsKeyshareFree(keyshareHandle); err != nil {
-			fmt.Printf("failed to free keyshare: %w \n", err)
+			fmt.Printf("failed to free keyshare: %s \n", err)
 		}
 	}()
 
@@ -615,7 +616,7 @@ func ExportRootKey(parts []string, parties []string) error {
 		}
 		defer func() {
 			if err := session.DklsKeyshareFree(handle); err != nil {
-				fmt.Printf("failed to free keyshare: %w \n", err)
+				fmt.Printf("failed to free keyshare: %s \n", err)
 			}
 		}()
 		msg, _, err := session.DklsKeyExporter(handle, parties[idx+1], setupMsg)

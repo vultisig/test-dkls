@@ -28,6 +28,14 @@ type MPCKeysignWrapper interface {
 	SignSessionFinish(session Handle) ([]byte, error)
 	SignSessionFree(session Handle) error
 }
+type MPCQcWrapper interface {
+	QcSetupMsgNew(keyshareHandle Handle, threshod int, ids []string, oldParties []int, newParties []int) ([]byte, error)
+	QcSessionFromSetup(setupMsg []byte, id string, keyshareHandle Handle) (Handle, error)
+	QcSessionOutputMessage(session Handle) ([]byte, error)
+	QcSessionMessageReceiver(session Handle, message []byte, index int) (string, error)
+	QcSessionInputMessage(session Handle, message []byte) (bool, error)
+	QcSessionFinish(session Handle) (Handle, error)
+}
 type MPCKeyshareWrapper interface {
 	KeyshareFromBytes(buf []byte) (Handle, error)
 	KeyshareToBytes(share Handle) ([]byte, error)
@@ -51,9 +59,54 @@ var _ MPCKeygenWrapper = &MPCWrapperImp{}
 var _ MPCKeysignWrapper = &MPCWrapperImp{}
 var _ MPCKeyshareWrapper = &MPCWrapperImp{}
 var _ MPCSetupWrapper = &MPCWrapperImp{}
+var _ MPCQcWrapper = &MPCWrapperImp{}
 
 type MPCWrapperImp struct {
 	isEdDSA bool
+}
+
+func (w *MPCWrapperImp) QcSetupMsgNew(keyshareHandle Handle, threshod int, ids []string, oldParties []int, newParties []int) ([]byte, error) {
+	if w.isEdDSA {
+		return nil, fmt.Errorf("Not implemented")
+	}
+	return session.DklsQcSetupMsgNew(session.Handle(keyshareHandle), threshod, ids, oldParties, newParties)
+}
+
+func (w *MPCWrapperImp) QcSessionFromSetup(setupMsg []byte, id string, keyshareHandle Handle) (Handle, error) {
+	if w.isEdDSA {
+		return Handle(0), fmt.Errorf("Not implemented")
+	}
+	h, err := session.DklsQcSessionFromSetup(setupMsg, id, session.Handle(keyshareHandle))
+	return Handle(h), err
+}
+
+func (w *MPCWrapperImp) QcSessionOutputMessage(h Handle) ([]byte, error) {
+	if w.isEdDSA {
+		return nil, fmt.Errorf("Not implemented")
+	}
+	return session.DklsQcSessionOutputMessage(session.Handle(h))
+}
+
+func (w *MPCWrapperImp) QcSessionMessageReceiver(h Handle, message []byte, index int) (string, error) {
+	if w.isEdDSA {
+		return "", fmt.Errorf("Not implemented")
+	}
+	return session.DklsQcSessionMessageReceiver(session.Handle(h), message, index)
+}
+
+func (w *MPCWrapperImp) QcSessionInputMessage(h Handle, message []byte) (bool, error) {
+	if w.isEdDSA {
+		return false, fmt.Errorf("Not implemented")
+	}
+	return session.DklsQcSessionInputMessage(session.Handle(h), message)
+}
+
+func (w *MPCWrapperImp) QcSessionFinish(h Handle) (Handle, error) {
+	if w.isEdDSA {
+		return Handle(0), fmt.Errorf("Not implemented")
+	}
+	shareHandle, err := session.DklsQcSessionFinish(session.Handle(h))
+	return Handle(shareHandle), err
 }
 
 func NewMPCWrapperImp(isEdDSA bool) *MPCWrapperImp {
