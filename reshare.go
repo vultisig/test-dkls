@@ -39,6 +39,7 @@ func (t *TssService) processReshareCommittee(oldParties []string, newParties []s
 	}
 	return allParties, newPartiesIdx, oldPartiesIdx
 }
+
 func (t *TssService) Reshare(sessionID string,
 	publicKeyECDAS string,
 	localPartyID string,
@@ -133,11 +134,11 @@ func (t *TssService) Reshare(sessionID string,
 	if err != nil {
 		return fmt.Errorf("failed to create session from setup message: %w", err)
 	}
-	//defer func() {
+	// defer func() {
 	//	if err := mpcWrapper.KeygenSessionFree(handle); err != nil {
 	//		t.logger.Error("failed to free keygen session", "error", err)
 	//	}
-	//}()
+	// }()
 	wg := &sync.WaitGroup{}
 	wg.Add(2)
 	go func() {

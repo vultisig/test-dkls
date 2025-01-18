@@ -67,14 +67,15 @@ type MPCWrapperImp struct {
 
 func (w *MPCWrapperImp) QcSetupMsgNew(keyshareHandle Handle, threshod int, ids []string, oldParties []int, newParties []int) ([]byte, error) {
 	if w.isEdDSA {
-		return nil, fmt.Errorf("Not implemented")
+		return eddsaSession.SchnorrQcSetupMsgNew(eddsaSession.Handle(keyshareHandle), threshod, ids, oldParties, newParties)
 	}
 	return session.DklsQcSetupMsgNew(session.Handle(keyshareHandle), threshod, ids, oldParties, newParties)
 }
 
 func (w *MPCWrapperImp) QcSessionFromSetup(setupMsg []byte, id string, keyshareHandle Handle) (Handle, error) {
 	if w.isEdDSA {
-		return Handle(0), fmt.Errorf("Not implemented")
+		h, err := eddsaSession.SchnorrQcSessionFromSetup(setupMsg, id, eddsaSession.Handle(keyshareHandle))
+		return Handle(h), err
 	}
 	h, err := session.DklsQcSessionFromSetup(setupMsg, id, session.Handle(keyshareHandle))
 	return Handle(h), err
@@ -82,28 +83,29 @@ func (w *MPCWrapperImp) QcSessionFromSetup(setupMsg []byte, id string, keyshareH
 
 func (w *MPCWrapperImp) QcSessionOutputMessage(h Handle) ([]byte, error) {
 	if w.isEdDSA {
-		return nil, fmt.Errorf("Not implemented")
+		return eddsaSession.SchnorrQcSessionOutputMessage(eddsaSession.Handle(h))
 	}
 	return session.DklsQcSessionOutputMessage(session.Handle(h))
 }
 
 func (w *MPCWrapperImp) QcSessionMessageReceiver(h Handle, message []byte, index int) (string, error) {
 	if w.isEdDSA {
-		return "", fmt.Errorf("Not implemented")
+		return eddsaSession.SchnorrQcSessionMessageReceiver(eddsaSession.Handle(h), message, index)
 	}
 	return session.DklsQcSessionMessageReceiver(session.Handle(h), message, index)
 }
 
 func (w *MPCWrapperImp) QcSessionInputMessage(h Handle, message []byte) (bool, error) {
 	if w.isEdDSA {
-		return false, fmt.Errorf("Not implemented")
+		return eddsaSession.SchnorrQcSessionInputMessage(eddsaSession.Handle(h), message)
 	}
 	return session.DklsQcSessionInputMessage(session.Handle(h), message)
 }
 
 func (w *MPCWrapperImp) QcSessionFinish(h Handle) (Handle, error) {
 	if w.isEdDSA {
-		return Handle(0), fmt.Errorf("Not implemented")
+		h1, err := eddsaSession.SchnorrQcSessionFinish(eddsaSession.Handle(h))
+		return Handle(h1), err
 	}
 	shareHandle, err := session.DklsQcSessionFinish(session.Handle(h))
 	return Handle(shareHandle), err
