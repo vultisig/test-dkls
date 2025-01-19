@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
+	"crypto/rand"
 	"encoding/hex"
 	"fmt"
 	"math/big"
@@ -11,6 +12,15 @@ import (
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 )
 
+func TestGetChainCode(t *testing.T) {
+	// get 32 bytes random chain code
+	chainCode := make([]byte, 32)
+	_, err := rand.Read(chainCode)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fmt.Println("Chain Code:", hex.EncodeToString(chainCode))
+}
 func TestStuff(t *testing.T) {
 	uncompressedPubKeyHex := "04d6fff3bd22d8bc64bf3cc885ced3b222cb37797ddff2b7e4149e91e991032fe62e827d60892a0674ba2f3b1fd64b4841653116bc2677cf5711c831d0da14ae22"
 	uncompressedPubKeyBytes, _ := hex.DecodeString(uncompressedPubKeyHex)

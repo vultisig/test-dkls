@@ -103,6 +103,13 @@ func main() {
 						Hidden:     false,
 						HasBeenSet: false,
 					},
+					&cli.BoolFlag{
+						Name:       "eddsa",
+						Required:   false,
+						Hidden:     false,
+						HasBeenSet: false,
+						Value:      false,
+					},
 				},
 				Action: reshareCmd,
 			},

@@ -258,7 +258,7 @@ func (t *TssService) processKeygenInbound(handle Handle,
 						return err
 					}
 					encodedPublicKey := hex.EncodeToString(publicKeyECDSABytes)
-					t.logger.Infof("Public key: %s, keyshare: %s", encodedPublicKey, encodedShare)
+					t.logger.Infof("Public key: %s", encodedPublicKey)
 					// This sleep give the local party a chance to send last message to others
 					t.isKeygenFinished.Store(true)
 					return t.localStateAccessor.SaveLocalState(encodedPublicKey, encodedShare)
@@ -404,7 +404,7 @@ func (t *TssService) Keysign(sessionID string,
 		}
 		r := sig[:32]
 		s := sig[32:64]
-		//recovery := sig[64]
+		// recovery := sig[64]
 		pubKeyBytes, err := hex.DecodeString(publicKeyECDSA)
 		if err != nil {
 			return fmt.Errorf("failed to decode public key: %w", err)
