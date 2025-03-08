@@ -150,6 +150,7 @@ func (t *TssService) Reshare(sessionID string,
 	wg.Wait()
 	return err
 }
+
 func (t *TssService) processQcOutbound(handle Handle,
 	sessionID string, parties []string,
 	localPartyID string,

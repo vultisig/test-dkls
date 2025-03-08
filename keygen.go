@@ -18,6 +18,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/bnb-chain/tss-lib/v2/common"
+	"github.com/bnb-chain/tss-lib/v2/ecdsa/keygen"
+	"github.com/bnb-chain/tss-lib/v2/tss"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/sirupsen/logrus"
 	"github.com/vultisig/mobile-tss-lib/coordinator"
@@ -50,7 +53,12 @@ func NewTssService(server string, localStateAccessor LocalStateAccessor, isEdDSA
 func (t *TssService) GetMPCKeygenWrapper() *MPCWrapperImp {
 	return NewMPCWrapperImp(t.isEdDSA)
 }
-func (t *TssService) Keygen(sessionID string, chainCode string, localPartyID string, keygenCommittee []string, isInitiateDevice bool) error {
+
+func (t *TssService) Keygen(sessionID string,
+	chainCode string,
+	localPartyID string,
+	keygenCommittee []string,
+	isInitiateDevice bool) error {
 	t.logger.WithFields(logrus.Fields{
 		"session_id":         sessionID,
 		"chain_code":         chainCode,
@@ -570,6 +578,87 @@ func (t *TssService) convertKeygenCommitteeToBytes(paries []string) ([]byte, err
 	return result, nil
 }
 
+func getECDSALocalSecret(vault *Vault) ([]byte, error) {
+	rawKeyshare := ""
+	for _, item := range vault.KeyShares {
+		if item.PublicKey == vault.PublicKeyECDSA {
+			rawKeyshare = item.RawKeyshare
+			break
+		}
+	}
+	if rawKeyshare == "" {
+		return nil, fmt.Errorf("keyshare not found")
+	}
+
+	var tempVar struct {
+		PublicKey      string                    `json:"public_key"`
+		ECDSALocalData keygen.LocalPartySaveData `json:"ecdsa_local_data"`
+		EDDSALocalData keygen.LocalPartySaveData `json:"eddsa_local_data"`
+	}
+	if err := json.Unmarshal([]byte(rawKeyshare), &tempVar); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal keyshare: %w", err)
+	}
+	localPartySaveData := tempVar.ECDSALocalData
+	modQ := common.ModInt(tss.EC().Params().N)
+	times := big.NewInt(1)
+	for i := 0; i < len(localPartySaveData.Ks); i++ {
+		item := localPartySaveData.Ks[i]
+		if item.Cmp(localPartySaveData.ShareID) == 0 {
+			continue
+		}
+		sub := modQ.Sub(item, localPartySaveData.ShareID)
+		subInv := modQ.ModInverse(sub)
+		div := modQ.Mul(item, subInv)
+		times = modQ.Mul(times, div)
+	}
+	ui := modQ.Mul(localPartySaveData.Xi, times)
+	return ui.Bytes(), nil
+}
+
+func getEdDSALocalSecret(vault *Vault) ([]byte, error) {
+	rawKeyshare := ""
+	for _, item := range vault.KeyShares {
+		if item.PublicKey == vault.PublicKeyEDDSA {
+			rawKeyshare = item.RawKeyshare
+			break
+		}
+	}
+	if rawKeyshare == "" {
+		return nil, fmt.Errorf("keyshare not found")
+	}
+
+	var tempVar struct {
+		PublicKey      string                    `json:"public_key"`
+		ECDSALocalData keygen.LocalPartySaveData `json:"ecdsa_local_data"`
+		EDDSALocalData keygen.LocalPartySaveData `json:"eddsa_local_data"`
+	}
+	if err := json.Unmarshal([]byte(rawKeyshare), &tempVar); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal keyshare: %w", err)
+	}
+	localPartySaveData := tempVar.EDDSALocalData
+	modQ := common.ModInt(tss.Edwards().Params().N)
+	times := big.NewInt(1)
+	for i := 0; i < len(localPartySaveData.Ks); i++ {
+		item := localPartySaveData.Ks[i]
+		if item.Cmp(localPartySaveData.ShareID) == 0 {
+			continue
+		}
+		sub := modQ.Sub(item, localPartySaveData.ShareID)
+		subInv := modQ.ModInverse(sub)
+		div := modQ.Mul(item, subInv)
+		times = modQ.Mul(times, div)
+	}
+	ui := modQ.Mul(localPartySaveData.Xi, times)
+	return reverseBytes(ui.Bytes()), nil
+}
+func reverseBytes(input []byte) []byte {
+	length := len(input)
+	reversed := make([]byte, length)
+	for i, b := range input {
+		reversed[length-1-i] = b
+	}
+	return reversed
+}
 func ExportRootKey(parts []string, parties []string) error {
 	if len(parts) == 0 {
 		return fmt.Errorf("no parts provided")
@@ -640,4 +729,121 @@ func ExportRootKey(parts []string, parties []string) error {
 		}
 	}
 	return nil
+}
+func (t *TssService) MigrateKey(sessionID string,
+	isInitiateDevice bool,
+	keyshareFile string) error {
+	t.logger.WithFields(logrus.Fields{
+		"session_id":         sessionID,
+		"is_initiate_device": isInitiateDevice,
+		"keyshare_file":      keyshareFile,
+		"eddsa":              t.isEdDSA,
+	}).Info("migrate key")
+
+	vault, err := GetVaultFromFile(keyshareFile)
+	if err != nil {
+		return fmt.Errorf("fail to get vault from file: %w", err)
+	}
+	localPartyID := vault.LocalPartyID
+	keygenCommittee := vault.Signers
+	if err := RegisterSession(t.relayServer, sessionID, localPartyID); err != nil {
+		return fmt.Errorf("failed to register session: %w", err)
+	}
+	mpcKeygenWrapper := t.GetMPCKeygenWrapper()
+	var encodedSetupMsg = ""
+	if isInitiateDevice {
+		if coordinator.WaitAllParties(keygenCommittee, t.relayServer, sessionID) != nil {
+			return fmt.Errorf("failed to wait for all parties to join")
+		}
+		fmt.Println("I am the leader , construct the setup message")
+		keygenCommitteeBytes, err := t.convertKeygenCommitteeToBytes(keygenCommittee)
+		if err != nil {
+			return fmt.Errorf("failed to get keygen committee: %v", err)
+		}
+		threshold, err := GetThreshold(len(keygenCommittee))
+		if err != nil {
+			return fmt.Errorf("failed to get threshold: %v", err)
+		}
+		t.logger.Infof("Threshold is %v", threshold+1)
+		setupMsg, err := mpcKeygenWrapper.KeygenSetupMsgNew(threshold+1, nil, keygenCommitteeBytes)
+		if err != nil {
+			return fmt.Errorf("failed to create setup message: %v", err)
+		}
+		encodedSetupMsg = base64.StdEncoding.EncodeToString(setupMsg)
+		t.logger.Infoln("setup message is:", encodedSetupMsg)
+		if err := UploadPayload(t.relayServer, sessionID, encodedSetupMsg); err != nil {
+			return fmt.Errorf("failed to upload setup message: %v", err)
+		}
+
+		if err := StartSession(t.relayServer, sessionID, keygenCommittee); err != nil {
+			return fmt.Errorf("failed to start session: %w", err)
+		}
+	} else {
+		// wait for the keygen to start
+		_, err := WaitForSessionStart(t.relayServer, sessionID)
+		if err != nil {
+			return fmt.Errorf("failed to wait for session to start: %w", err)
+		}
+		// retrieve the setup Message
+		encodedSetupMsg, err = GetPayload(t.relayServer, sessionID)
+	}
+	setupMessageBytes, err := base64.StdEncoding.DecodeString(encodedSetupMsg)
+	if err != nil {
+		return fmt.Errorf("failed to decode setup message: %w", err)
+	}
+
+	var secret []byte
+	var publicKeyBytes []byte
+	var chainCodeBytes []byte
+	if !t.isEdDSA {
+		secret, err = getECDSALocalSecret(vault)
+		if err != nil {
+			return fmt.Errorf("failed to get local secret: %w", err)
+		}
+		publicKeyBytes, err = hex.DecodeString(vault.PublicKeyECDSA)
+		if err != nil {
+			return fmt.Errorf("failed to decode public key: %w", err)
+		}
+		chainCodeBytes, err = hex.DecodeString(vault.HexChainCode)
+		if err != nil {
+			return fmt.Errorf("failed to decode chain code: %w", err)
+		}
+	} else {
+		secret, err = getEdDSALocalSecret(vault)
+		if err != nil {
+			return fmt.Errorf("failed to get local secret: %w", err)
+		}
+		publicKeyBytes, err = hex.DecodeString(vault.PublicKeyEDDSA)
+		if err != nil {
+			return fmt.Errorf("failed to decode public key: %w", err)
+		}
+		chainCodeBytes, err = hex.DecodeString(vault.HexChainCode)
+		if err != nil {
+			return fmt.Errorf("failed to decode chain code: %w", err)
+		}
+	}
+
+	handle, err := mpcKeygenWrapper.MigrateSessionFromSetup(setupMessageBytes,
+		[]byte(localPartyID),
+		publicKeyBytes,
+		chainCodeBytes,
+		secret)
+	if err != nil {
+		return fmt.Errorf("failed to create session from setup message: %w", err)
+	}
+	defer func() {
+		if err := mpcKeygenWrapper.KeygenSessionFree(handle); err != nil {
+			t.logger.Error("failed to free keygen session", "error", err)
+		}
+	}()
+	wg := &sync.WaitGroup{}
+	wg.Add(2)
+	go func() {
+		if err := t.processKeygenOutbound(handle, sessionID, keygenCommittee, localPartyID, wg); err != nil {
+			t.logger.Error("failed to process keygen outbound", "error", err)
+		}
+	}()
+	err = t.processKeygenInbound(handle, sessionID, localPartyID, wg)
+	wg.Wait()
+	return err
 }

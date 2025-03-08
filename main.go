@@ -147,6 +147,26 @@ func main() {
 				},
 				Action: keysignCmd,
 			},
+			{
+				Name: "migrate",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:       "file",
+						Usage:      "keyshare json file",
+						Required:   true,
+						HasBeenSet: false,
+						Hidden:     false,
+					},
+					&cli.BoolFlag{
+						Name:       "eddsa",
+						Required:   false,
+						Hidden:     false,
+						HasBeenSet: false,
+						Value:      false,
+					},
+				},
+				Action: migrationCmd,
+			},
 		},
 		Before: func(c *cli.Context) error {
 			if c.Command.Name == "export" {
@@ -216,4 +236,18 @@ func exportCmd(c *cli.Context) error {
 	parties := c.StringSlice("parties")
 
 	return ExportRootKey(parts, parties)
+}
+func migrationCmd(c *cli.Context) error {
+	key := c.String("key")
+	sessionID := c.String("session")
+	server := c.String("server")
+	isLeader := c.Bool("leader")
+	localStateAccessorImp := NewLocalStateAccessorImp(key)
+	keyshareFile := c.String("file")
+	isEdDSA := c.Bool("eddsa")
+	tss, err := NewTssService(server, localStateAccessorImp, isEdDSA)
+	if err != nil {
+		return err
+	}
+	return tss.MigrateKey(sessionID, isLeader, keyshareFile)
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 
 	session "go-wrapper/go-dkls/sessions"
@@ -17,6 +18,7 @@ type MPCKeygenWrapper interface {
 	KeygenSessionMessageReceiver(session Handle, message []byte, index int) (string, error)
 	KeygenSessionFinish(session Handle) (Handle, error)
 	KeygenSessionFree(session Handle) error
+	MigrateSessionFromSetup(setup []byte, id []byte, publicKey []byte, rootChainCode []byte, secretCoefficient []byte) (Handle, error)
 }
 type MPCKeysignWrapper interface {
 	SignSetupMsgNew(keyID []byte, chainPath []byte, messageHash []byte, ids []byte) ([]byte, error)
@@ -182,9 +184,17 @@ func (w *MPCWrapperImp) SignSetupMsgNew(keyID []byte, chainPath []byte, messageH
 }
 func (w *MPCWrapperImp) FinishSetupMsgNew(sessionID []byte, messageHash []byte, ids []byte) ([]byte, error) {
 	if w.isEdDSA {
-		return eddsaSession.SchnorrFinishSetupMsgNew(sessionID, messageHash, ids)
+		return nil, errors.New("not implemented")
 	}
 	return session.DklsFinishSetupMsgNew(sessionID, messageHash, ids)
+}
+func (w *MPCWrapperImp) MigrateSessionFromSetup(setup []byte, id []byte, publicKey []byte, rootChainCode []byte, secretCoefficient []byte) (Handle, error) {
+	if w.isEdDSA {
+		h, err := eddsaSession.SchnorrKeyMigrateSessionFromSetup(setup, id, publicKey, rootChainCode, secretCoefficient)
+		return Handle(h), err
+	}
+	h, err := session.DklsKeyMigrateSessionFromSetup(setup, id, publicKey, rootChainCode, secretCoefficient)
+	return Handle(h), err
 }
 func (w *MPCWrapperImp) SignSessionFromSetup(setup []byte, id []byte, shareOrPresign Handle) (Handle, error) {
 	if w.isEdDSA {
